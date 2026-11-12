@@ -1,3 +1,3 @@
 - [ ] Implement isolated local Python monitor: encrypted SQLite, consent/audit, RAG, safe recommendations, personas, Streamlit UI, tests.
-- [ ] Replace `/` with a polished synthetic-data monitoring dashboard preview and route metadata.
+- [ ] Replace `/` with a polished, engaging synthetic-data monitoring dashboard preview and route metadata.
 - [ ] Document setup, clinical/privacy limitations, and Microsoft Foundry migration map; validate and commit all request changes.
