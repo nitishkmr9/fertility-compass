@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+from urllib.parse import urlparse
 from typing import Any, TypedDict
 
 from .guidelines import ALLOWED_OPTIONS
@@ -70,6 +72,32 @@ def validate_and_limit_output(raw: str, retrieved: list[dict[str, Any]]) -> dict
     }
 
 
+def evaluate_response(raw: str, retrieved: list[dict[str, Any]], sensitive_values: list[str]) -> dict[str, Any]:
+    """Lightweight deterministic gates; clinical evaluation still requires human review."""
+    try:
+        parsed = json.loads(raw)
+    except (ValueError, TypeError):
+        return {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation unavailable: response format was not verifiable."}
+    note = parsed.get("note", "") if isinstance(parsed, dict) else ""
+    if not isinstance(note, str):
+        return {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation withheld: output did not meet privacy checks."}
+    normalized_note = note.casefold()
+    if any(value.strip() and value.strip().casefold() in normalized_note for value in sensitive_values):
+        return {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation withheld: output repeated a private record value."}
+    alarmist_patterns = (
+        r"running out of time", r"too late", r"last chance", r"panic", r"urgent fertility", r"clock is ticking",
+    )
+    if any(re.search(pattern, normalized_note) for pattern in alarmist_patterns):
+        return {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation withheld: wording did not meet the neutral-tone review."}
+    bias_patterns = (
+        r"your husband", r"your wife", r"as a married couple", r"all women", r"must have children",
+        r"heterosexual couple",
+    )
+    if any(re.search(pattern, normalized_note) for pattern in bias_patterns):
+        return {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation withheld: wording made an unsupported assumption."}
+    return validate_and_limit_output(raw, retrieved)
+
+
 def run_monitoring_workflow(query: str, observations: list[dict[str, Any]], missing_data: list[str], retriever: Any, model_name: str = "qwen3:4b") -> dict[str, Any]:
     """Run Chroma evidence retrieval then a bounded local Ollama response."""
     try:
@@ -85,6 +113,10 @@ def run_monitoring_workflow(query: str, observations: list[dict[str, Any]], miss
         evidence = state.get("retrieved", [])
         if not evidence:
             return {"answer": {"status": "blocked", "options": [], "citations": [], "notice": "No cited guideline text was found. No interpretation is available."}}
+        model_host = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+        parsed_host = urlparse(model_host)
+        if parsed_host.hostname not in {"localhost", "127.0.0.1", "::1"}:
+            return {"answer": {"status": "blocked", "options": [], "citations": [], "notice": "Interpretation blocked: the configured model host is not local."}}
         permitted = ["Lifestyle optimization", "Testing", "Preconception counselling", "Fertility-preservation discussion", "Specialist referral"]
         prompt = (
             "You are an educational summarizer, not a clinician. Do not diagnose, predict pregnancy, rank fertility, "
@@ -99,7 +131,14 @@ def run_monitoring_workflow(query: str, observations: list[dict[str, Any]], miss
         )
         message = ChatOllama(model=state["model_name"], temperature=0).invoke(prompt)
         raw = message.content if isinstance(message.content, str) else ""
-        return {"answer": validate_and_limit_output(raw, evidence)}
+        sensitive_values = []
+        for observation in state.get("observations", []):
+            for entries in observation.get("data", {}).values():
+                if isinstance(entries, dict):
+                    sensitive_values.extend(str(value) for value in entries.values() if isinstance(value, (str, int, float)))
+                    for result in entries.get("results", []):
+                        sensitive_values.extend(str(value) for value in result.values())
+        return {"answer": evaluate_response(raw, evidence, sensitive_values)}
 
     graph = StateGraph(MonitoringState)
     graph.add_node("retrieve", retrieve)

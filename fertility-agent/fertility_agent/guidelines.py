@@ -22,10 +22,10 @@ SOURCES = (
         "Committee opinion, not a patient-specific assessment. Verify the current edition before clinical use.",
     ),
     GuidelineSource(
-        "ASRM-EVALUATION-2021", "Fertility evaluation of infertile women", "ASRM", "2021",
-        "https://www.asrm.org/practice-guidance/practice-committee-documents/fertility-evaluation-of-infertile-women-a-committee-opinion-2021/",
+        "ASRM-EVALUATION-2026", "Fertility evaluation of infertile women", "ASRM", "2026",
+        "https://www.asrm.org/practice-guidance/practice-committee-documents/fertility-evaluation-of-infertile-women-a-committee-opinion-2026/",
         "ASRM describes fertility evaluation as a systematic clinical evaluation using history and relevant investigations. This opinion is about clinical evaluation, not a consumer prediction from sparse tracking data.",
-        "Committee opinion, not a substitute for clinical judgment. The edition may change; verify before clinical use.",
+        "Committee opinion, not a substitute for clinical judgment. Verify the current edition before clinical use.",
     ),
     GuidelineSource(
         "NICE-NG257-2026", "Fertility problems: assessment and treatment", "NICE", "2026",

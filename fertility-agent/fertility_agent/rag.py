@@ -25,6 +25,10 @@ def _local_embedding(text: str) -> list[float]:
 
 class GuidelineRetriever:
     def __init__(self, path: Path):
+        import os
+
+        os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+        os.environ.setdefault("OTEL_SDK_DISABLED", "true")
         try:
             import chromadb
         except ImportError as exc:

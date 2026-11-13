@@ -81,12 +81,18 @@ class LocalStore:
             (utc_now(), participant_id, action, scope),
         )
 
-    def add_participant(self, participant_id: str, display_name: str, *, synthetic: bool = False) -> None:
+    def add_participant(self, participant_id: str, display_name: str, *, synthetic: bool = False) -> bool:
         with self._connect() as connection:
-            connection.execute(
+            result = connection.execute(
                 "INSERT OR IGNORE INTO participants (participant_id, display_name, synthetic, created_at) VALUES (?, ?, ?, ?)",
                 (participant_id, display_name, int(synthetic), utc_now()),
             )
+            return result.rowcount == 1
+
+    def delete_participant(self, participant_id: str) -> None:
+        with self._connect() as connection:
+            self._audit(connection, None, "participant_deleted", "all_data")
+            connection.execute("DELETE FROM participants WHERE participant_id = ?", (participant_id,))
 
     def list_participants(self, *, include_synthetic: bool = True) -> list[dict[str, Any]]:
         with self._connect() as connection:
